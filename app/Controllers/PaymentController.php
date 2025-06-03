@@ -59,22 +59,15 @@ class PaymentController extends BaseController
         curl_close($ch);
 
         $responseData = json_decode($response, true);
-        if (isset($responseData['link_url'])) {
-            return redirect()->to($responseData['link_url']);
+//         echo '<pre>';
+//   print_r($responseData);
+//   echo '</pre>';
+//  exit;
+        if (isset($responseData['payments']['url'])) {
+            return redirect()->to($responseData['payments']['url']);
         }
-
         return view('payment_failure', ['message' => 'Unable to create payment']);
     }
 
-    public function paymentSuccess()
-    {
-        $orderId = $this->request->getGet('order_id');
-        // 🔄 Verify with Cashfree API or Webhook
-        return view('payment_success', ['order_id' => $orderId]);
-    }
-
-    public function paymentFailure()
-    {
-        return view('payment_failure', ['message' => 'Payment failed or canceled']);
-    }
+   
 }
