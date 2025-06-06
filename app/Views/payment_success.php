@@ -1,22 +1,8 @@
-<!-- <!DOCTYPE html>
-<html>
-<head>
-    <title>Payment Success</title>
-</head>
-<body>
-    <h2>✅ Payment Successful!</h2>
-    <p>Order ID: <?= esc($order_id) ?></p>
-    <p>Amount Paid: ₹<?= esc($amount) ?></p>
-    <a href="<?= site_url('/') ?>">
-        <button>Go to Homepage</button>
-    </a>
-</body>
-</html> -->
-
 
 <?php 
     // Extract donationId from $data if available
-    $donationId = isset($donationId) ? $donationId : (isset($data['donationId']) ? $data['donationId'] : '');
+    $donationId = isset($data) ? $data : (isset($data['order_id']) ? $data['order_id'] : '');
+    $adminData = isset($data) ? $data : (isset($data['adminData']) ? $data['adminData'] : '');
     $trackingId = isset($trackingId) ? $trackingId : (isset($data['trackingId']) ? $data['trackingId'] : '');
     $paymentMode = isset($paymentMode) ? $paymentMode : (isset($data['paymentMode']) ? $data['paymentMode'] : '');
 ?>
@@ -24,7 +10,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Donation Receipt - Voters Party International</title>
+  <title>Donation Receipt - <?= isset($adminData['name']) ? ($adminData['name']) : '' ?></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     html, body {
@@ -50,31 +36,33 @@
   }
   </style>
 </head>
-<body class="bg-light d-flex align-items-center justify-content-center pt-5">
+<body class="bg-light pt-3">
 
-<div class="container d-flex justify-content-center align-items-start min-vh-100 pt-5">
+
+<div class="container d-flex justify-content-center align-items-start pt-4" style="min-height: 100vh;">
+
   <div class="card shadow-sm" style="max-width: 700px; width: 100%;">
     <div class="card-body">
 
       <!-- Header with Logo, Title, and Right Image -->
         <div class="text-center flex-grow-1">
-          <p class="text-center border-bottom pb-3 mb-2">
-            <span class="fw-bold">Registration No. : </span>56/100/2012-16/PPS-I
-          </p>
-</div>
-<div class="text-center flex-grow-1">
- <div class="justify-content-between align-items-center party-header border-bottom pb-3 mb-4">
-        <img src="<?= base_url('assets/logo.png') ?>" alt="Logo" class="img-fluid">          
-<h2>Voters Party International</h2>
-          <p>Uniting Voters, Empowering Democracy</p>
-          <p>
-            <a href="https://www.votersparty.in">www.votersparty.in</a> |
-            <a href="mailto:vpimedia.central@gmail.com">vpimedia.central@gmail.com</a>
-          </p>
+        <p class="text-center border-bottom pb-3 mb-2">
+          <span class="fw-bold">Registration No. : </span>
+          <span id="registrationNumber">N/A</span>
+        </p>
         </div>
+    <div class="text-center flex-grow-1">
+      <div class="justify-content-between align-items-center party-header border-bottom pb-3 mb-4">
+         <img id="adminLogo" src="" alt="Logo" class="img-fluid">       
+            <h2 id="adminName"></h2>
+            <p>
+          <a id="websiteLink" href="#" target="_blank"></a> |
+          <a id="adminEmail" href="#"></a>
+        </p>
+      </div>
 
         
-      </div>
+    </div>
 
       <!-- Receipt Info -->
       <div class="mb-4 mx-auto">
@@ -117,8 +105,8 @@
       <!-- Footer -->
       <div class="text-center text-muted small mt-4">
         This receipt can be used for your records or tax purposes as applicable.<br><br>
-        — Voters Party International<br>
-        Registered Office: 385, Lane No. 12/A, Wazirabad Village, Delhi-110084<br>
+        — <span id="adminFooterName" class="fw-bold fs-6"></span><br>
+        Registered Office: <span id="adminAddress" class="fw-bold fs-6"></span><br>
       </div>
     </div>
     <div class="text-center mt-4">
@@ -173,7 +161,6 @@
             };
             $.ajax(ajaxOptions);
         }
-
         function populateDonationData(data) {
             $("#donorName").text(data.name || 'N/A');
             $("#donorEmail").text(data.email || 'N/A');
@@ -182,6 +169,45 @@
             $("#receiptNo").text(data.receipt_no || 'N/A');
             $("#date").text(data.date || 'N/A');
         }
+
+
+        $.ajax({
+          url: '<?= env('NGO_API_BASE_URL') ?>/admin/details',
+          type: "GET",
+          success: function(response) {
+              if (response.status === 'success' && response.data) {
+                console.log(response.data);
+                  populateAdminData(response.data);
+              } else {
+                  console.error("Failed to fetch admin data");
+              }
+          },
+          error: function() {
+              console.error("AJAX error fetching admin data");
+          }
+      });
+
+      function populateAdminData(adminData) {
+        $("#adminName").text(adminData.name || 'N/A');
+        // Example: update title dynamically
+        document.title = `Donation Receipt - ${adminData.name || '-'}`;
+        const websiteURL = '<?= env('NGO_BASE_URL') ?>';
+        const displayURL = websiteURL.replace(/^https?:\/\//, ''); // strips http(s)
+        console.log(websiteURL);
+        $("#websiteLink")
+            .attr("href", websiteURL)
+            .text(displayURL);
+        $("#adminEmail")
+            .attr("href", "mailto:" + adminData.email)
+            .text(adminData.email);
+        $("#registrationNumber").text(adminData.registration_number);
+        $("#adminLogo").attr("src", adminData.logo);
+        $("#adminAddress").text(adminData.full_address);
+        $("#adminFooterName").text(adminData.name);
+        // Similarly update other admin related fields if you add placeholders in your HTML
+    }
+
+       
     });
     function redirectToCCAvenueStatus() {
       // If you need to pass donationId, append it as a query param

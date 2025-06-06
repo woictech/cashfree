@@ -12,7 +12,7 @@ $routes->get('payment-success', 'CashfreeController::paymentSuccess');
 $routes->get('payment-failure', 'CashfreeController::paymentFailure');
 
 
-$routes->get('cashfree/create-order', 'CashfreeController::createOrder');
+$routes->post('cashfree/create-order', 'CashfreeController::createOrder');
 $routes->get('cashfree/checkoutPage', 'CashfreeController::checkoutPage');
 $routes->get('cashfree/verify/(:any)', 'CashfreeController::verifyOrder/$1');
 
