@@ -90,10 +90,6 @@ class CashfreeController extends BaseController
                         ]
                     ]);
                     $refData = json_decode($response->getBody(), true);
-                    echo '<pre>';
-                    print_r($refData);
-                    echo '</pre>';
-                    exit;
                     $referenceId = $refData['id'] ?? null;
                     $modelType = "UD-{$referenceId}";
                 
