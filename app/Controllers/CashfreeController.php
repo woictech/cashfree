@@ -13,27 +13,15 @@ class CashfreeController extends BaseController
 {
         public function createOrder()
         {   
-            // ✅ CORS HEADERS
-            $allowedOrigin = getenv('NGO_BASE_URL');
-            header("Access-Control-Allow-Origin: http://localhost:5173");
-            // header("Access-Control-Allow-Origin: $allowedOrigin");
-            header("Access-Control-Allow-Methods: POST, OPTIONS");
-            header("Access-Control-Allow-Headers: Content-Type, Authorization");
-
-            // ✅ Preflight OPTIONS request handler
-            if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-                http_response_code(200);
-                exit();
-            }
             $data = $this->request->getPost();
-            $type = $data['type']; // 'UD' or 'DD'
-            $userId = $data['user_id'] ?? null; // Ensure you have this in POST
+            $type = $data['modalType'];
             $mobile = $data['mobile'];
             $email = $data['email'];
+            $name = $data['name'];
             $appId = getenv('CASHFREE_APP_ID');
             $secretKey = getenv('CASHFREE_SECRET_KEY');
         
-            $environment = 0; // 0 = SANDBOX, 1 = PRODUCTION
+            $environment = getenv('CASHFREE_MODE'); // 0 = SANDBOX, 1 = PRODUCTION
             $partnerApiKey = ''; // optional if not used
             $partnerMerchantId = ''; // optional if not used
             $clientSignature = ''; // optional if not used
@@ -54,15 +42,15 @@ class CashfreeController extends BaseController
             // ✅ Step 2: Create order request
             $order_id = "ORDER_" . time();
             $amount = number_format((float)$data['amount'], 2, '.', '');
-            $mobile = $data['mobile'];
-            $email = $data['email'];
             $create_orders_request = new CreateOrderRequest();
             $create_orders_request->setOrderId($order_id);
             $create_orders_request->setOrderAmount($amount);
             $create_orders_request->setOrderCurrency("INR");
 
             $customer_details = new CustomerDetails();
-            $customer_details->setCustomerId("CUSTOMER_" . time());
+            $prefix = ($type === 'UD') ? 'UD_' : 'DD_';
+            $customer_details->setCustomerId($prefix . time());
+            $customer_details->setCustomerName($name);
             $customer_details->setCustomerPhone($mobile);
             $customer_details->setCustomerEmail($email);
 
@@ -72,7 +60,6 @@ class CashfreeController extends BaseController
             $notifyUrl = base_url('payment-webhook');
             $orderMeta = new OrderMeta();
             $orderMeta->setReturnUrl($returnUrl);
-            $orderMeta->setNotifyUrl("https://yourdomain.com/payment-webhook");
             $create_orders_request->setOrderMeta($orderMeta); 
 
             try {
@@ -80,47 +67,71 @@ class CashfreeController extends BaseController
                 $res = json_decode($result[0]);
                 $sessionId = $res->payment_session_id;
                 $orderAmount = $res->order_amount;
-                $client = \Config\Services::curlrequest();
+                helper('cashfree_helper');
                 if ($type === 'UD') {
-                    $response = $client->post(getenv('NGO_API_BASE_URL') . '/user-donations/add', [
-                        'form_params' => [
-                            'user_id' => $userId,
-                            'mode'    => $data['mode'] ?? null,
-                            'amount'  => $amount,
-                        ]
+                    $userId = $data['user_id'];
+                    $response = curlPost(getenv('NGO_API_BASE_URL') . '/user-donation/add', [
+                        'user_id' => $userId,
+                        'mode'    => $data['mode'] ?? null,
+                        'amount'  => $amount,
                     ]);
-                    $refData = json_decode($response->getBody(), true);
-                    $referenceId = $refData['id'] ?? null;
+                    $refData = json_decode($response, true);
+                    if (is_null($refData) || !isset($refData['data']['id'])) {
+                        return $this->response->setJSON([
+                            'status' => 'failure',
+                            'msg' => 'Failed to create userDonation data',
+                        ]);
+                    }
+                    $referenceId = $refData['data']['id'];
                     $modelType = "UD-{$referenceId}";
-                
+            
                 } elseif ($type === 'DD') {
-                    $response = $client->post('https://external-url.com/api/donations', [
-                        'form_params' => [
-                            'mode'   => $data['mode'] ?? null,
-                            'amount' => $amount,
-                        ]
-                    ]);
-                    $refData = json_decode($response->getBody(), true);
-                    $referenceId = $refData['id'] ?? null;
+                    // $paymentImage = $this->request->getFile('payment_image');
+                    // $profileImage = $this->request->getFile('profile_image');
+                    // $response = curlPost(getenv('NGO_API_BASE_URL') . 'donation/createdonation', [
+                    //     'mode'   => $data['mode'] ?? null,
+                    //     'amount' => $amount,
+                    //     'name' => $data['name'],
+                    //     'mobile_no' => $mobile,
+                    //     'email' => $email,
+                    //     'pan_card_no' =>$data['pan_no'],
+                    //     'address' => $data['address'],
+                    //     'amount' =>$amount,
+                    //     'payment_image' => $paymentImage,
+                    //     'image' => $profileImage
+                    // ]);
+                    // $refData = json_decode($response, true);
+                    $referenceId = $data['donationId'];
                     $modelType = "DD-{$referenceId}";
                 }
+            
                 if ($referenceId && $modelType) {
-                    $client->post(getenv('NGO_API_BASE_URL') . '/transaction/add', [
-                        'form_params' => [
-                            'amount'    => $amount,
-                            'order_id'  => $referenceId,
-                            'type'      => $modelType
-                        ]
+                    $transResponse = curlPost(getenv('NGO_API_BASE_URL') . '/transaction/add', [
+                        'amount'    => $amount,
+                        'orderId'   => $order_id,
+                        'type'      => $modelType
                     ]);
+                    $transRefData = json_decode($transResponse, true);
                 }
+            
                 
-                return redirect()->to(site_url("cashfree/checkoutPage?session_id={$sessionId}&order_amount={$orderAmount}"));
-
+                // return redirect()->to(site_url("cashfree/checkoutPage?session_id={$sessionId}&order_amount={$orderAmount}"));
+                return $this->response->setJSON([
+                    'status' => 'success',
+                    'session_id' => $sessionId,
+                    'order_amount' => $orderAmount,
+                    'referenceId' => $referenceId,
+                    'redirect_url' => site_url("cashfree/checkoutPage?session_id={$sessionId}&order_amount={$orderAmount}")
+                ]);
                 // return $this->response->setJSON($res);
             } catch (\Exception $e) {
                 return $this->response->setJSON([
                     'error' => true,
-                    'message' => 'Exception when calling PGCreateOrder: ' . $e->getMessage()
+                    'message' => 'Exception when calling PGCreateOrder',
+                    'exception_message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
         }
@@ -135,43 +146,6 @@ class CashfreeController extends BaseController
         ]);
     }
 
-    public function verifyOrder($order_id)
-    {   
-
-        $appId = getenv('CASHFREE_APP_ID');
-        $secretKey = getenv('CASHFREE_SECRET_KEY');
-        $orderId = $this->request->getGet('order_id');
-
-        $environment = 0; // 0 = SANDBOX, 1 = PRODUCTION
-        $partnerApiKey = ''; // optional if not used
-        $partnerMerchantId = ''; // optional if not used
-        $clientSignature = ''; // optional if not used
-        $enableErrorAnalytics = true;
-        $x_api_version = '2022-09-01';
-    
-        $cashfree = new Cashfree(
-            $environment,
-            $appId,
-            $secretKey,
-            $partnerApiKey,
-            $partnerMerchantId,
-            $clientSignature,
-            $enableErrorAnalytics,
-            $x_api_version
-        );
-
-        try {
-            $response = $cashfree->PGFetchOrder($order_id);
-            $adminData = $this->fetchAdminData();
-
-            return $this->response->setJSON([
-                'order' => $response,
-                'admin' => $adminData
-            ]);
-        } catch (\Exception $e) {
-            return $this->response->setJSON(['error' => $e->getMessage()]);
-        }
-    }
 
     public function paymentSuccess()
     {
@@ -202,9 +176,7 @@ class CashfreeController extends BaseController
         try {
             $result = $cashfree->PGFetchOrder($orderId); // likely returns array with JSON in [0]
             $response = json_decode($result[0], true);
-            $adminData = $this->fetchAdminData();
 
-           
             if ($response['order_status']=='PAID')
             {   
                 $curl = curl_init();
@@ -220,72 +192,49 @@ class CashfreeController extends BaseController
                 ]);
     
                 $paymentResponse = curl_exec($curl);
+                $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
                 curl_close($curl);
     
-                $paymentData = json_decode($paymentResponse, true);
-    
-                // Assume only one payment attempt (index 0)
-                $paymentInstrument = $paymentData['payments'][0]['payment_instrument'] ?? [];
-    
+                $paymentData = json_decode($paymentResponse, true);    
                 // Merge payment method into main response
-                $response['payment_method'] = $paymentInstrument;
-    
-                // Add admin data
-                $data = array_merge($response, ['adminData' => $adminData['data']]);
-    
-                // return $this->response->setJSON($data);
-    
+                $response['payment_method'] = $paymentData;
+                $cfOrderId = $response['cf_order_id'] ?? null;
+                if ($cfOrderId) {
+                    $externalUrl = getenv('NGO_API_BASE_URL') . '/transactionStatus/update';
 
-                // $data = array_merge($response, ['adminData' => $adminData['data']]);
-                // return $this->response->setJSON($data);
-                return view('payment_success', $response);    
+                    $externalPayload = http_build_query([
+                        'order_id'    => $orderId,
+                        'cf_order_id' => $cfOrderId,
+                    ]);
+
+                    $externalCurl = curl_init($externalUrl);
+                    curl_setopt_array($externalCurl, [
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_POST           => true,
+                        CURLOPT_POSTFIELDS     => $externalPayload,
+                        CURLOPT_HTTPHEADER     => [
+                            'Content-Type: application/x-www-form-urlencoded'
+                        ]
+                    ]);
+
+                    $externalResponse = curl_exec($externalCurl);
+                    curl_close($externalCurl);
+                }
+                $paymentDetails = $response['payment_method'][0] ?? []; 
+                return view('payment_success', [
+                    'donationId'     => $response['order_id'] ?? '',
+                    'customerDetails'=> $response['customer_details'] ?? [],
+                    'paymentData'    => $paymentDetails
+                ]);    
             }
             else{
-                return view('payment_failure', $response );
+                return view('payment_failure');
             }
             // return $this->response->setJSON($response);
         } catch (\Exception $e) {
             return $this->response->setJSON(['error' => $e->getMessage()]);
         }
-        // 🔄 Verify with Cashfree API or Webhook
-        // return view('payment_success', ['order_id' => $orderId]);
-    }
 
-    public function paymentFailure()
-    {
-        return view('payment_failure', ['message' => 'Payment failed or canceled']);
-    }
-
-
-    private function fetchAdminData()
-    {
-        $url = getenv('NGO_API_BASE_URL') . '/admin/details';
-
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Accept: application/json',
-                // 'Authorization: Bearer your_token_if_required'
-            ]
-        ]);
-
-        $response = curl_exec($curl);
-
-        if (curl_errno($curl)) {
-            curl_close($curl);
-            return ['error' => 'Failed to fetch admin data'];
-        }
-
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        curl_close($curl);
-
-        if ($httpCode === 200) {
-            return json_decode($response, true);
-        } else {
-            return ['error' => 'Invalid response from NGO API'];
-        }
     }
 
 }

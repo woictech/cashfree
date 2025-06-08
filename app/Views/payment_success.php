@@ -1,17 +1,10 @@
-
-<?php 
-    // Extract donationId from $data if available
-    $donationId = isset($data) ? $data : (isset($data['order_id']) ? $data['order_id'] : '');
-    $adminData = isset($data) ? $data : (isset($data['adminData']) ? $data['adminData'] : '');
-    $trackingId = isset($trackingId) ? $trackingId : (isset($data['trackingId']) ? $data['trackingId'] : '');
-    $paymentMode = isset($paymentMode) ? $paymentMode : (isset($data['paymentMode']) ? $data['paymentMode'] : '');
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Donation Receipt - <?= isset($adminData['name']) ? ($adminData['name']) : '' ?></title>
+  <title></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="<?= base_url('public/assets/logo.png') ?>" />
   <style>
     html, body {
       height: 100%;
@@ -68,13 +61,16 @@
       <div class="mb-4 mx-auto">
         <h5 class="border-bottom pb-2 text-center">Donation Receipt</h5>
         <div class="row">
-          <div class="col-sm-6"><strong>Receipt No:</strong><span id="receiptNo"></div>
-          <div class="col-sm-6"><strong>Date:</strong> <span id="date"></div>
+          <div class="col-sm-6"><strong>Receipt No:</strong> <?= esc($donationId) ?></div>
           <div class="col-sm-6">
-            <strong>Transaction ID:</strong> <?= isset($trackingId) ? ($trackingId) : '-' ?>
+            <strong>Date:</strong>
+            <?= isset($paymentData['payment_time']) ? date('d-m-Y', strtotime($paymentData['payment_time'])) : '' ?>
           </div>
           <div class="col-sm-6">
-            <strong>Payment Method:</strong> <?= isset($paymentMode) ? ($paymentMode) : '-' ?>
+            <strong>Transaction ID:</strong> <?= esc($paymentData['bank_reference'] ?? '') ?>
+          </div>
+          <div class="col-sm-6">
+            <strong>Payment Method:</strong> <?= esc(strtoupper($paymentData['payment_group'] ?? '')) ?>
           </div>
         </div>
       </div>
@@ -82,9 +78,9 @@
       <div class="mb-4">
         <h5 class="border-bottom pb-2">Donor Information</h5>
         <div class="row">
-          <div class="col-sm-6"><strong>Name:</strong> <span id="donorName"></span></div>
-          <div class="col-sm-6"><strong>Email:</strong> <span id="donorEmail"></span></div>
-          <div class="col-sm-6"><strong>Phone:</strong> <span id="donorPhone"></span></div>
+          <div class="col-sm-6"><strong>Name:</strong> <?= esc($customerDetails['customer_name'] ?? '') ?></span></div>
+          <div class="col-sm-6"><strong>Email:</strong> <?= esc($customerDetails['customer_email'] ?? '') ?></span></div>
+          <div class="col-sm-6"><strong>Phone:</strong> <?= esc($customerDetails['customer_phone'] ?? '') ?></span></div>
         </div>
       </div>
 
@@ -92,8 +88,8 @@
       <div class="mb-4">
         <h5 class="border-bottom pb-2">Donation Details</h5>
         <div class="row">
-          <div class="col-sm-6"><strong>Purpose:</strong> Support for party activities</div>
-          <div class="col-sm-6"><strong>Amount:</strong> ₹<span id="donationAmount"></span></div>
+          <div class="col-sm-6"><strong>Purpose:</strong> Support for NGO activities</div>
+          <div class="col-sm-6"><strong>Amount:</strong> ₹<?= esc($paymentData['order_amount'] ?? '') ?></span></div>
         </div>
       </div>
 
@@ -111,7 +107,7 @@
     </div>
     <div class="text-center mt-4">
       <button class="btn btn-primary me-2" onclick="window.print()">🖨️ Print</button>
-      <button class="btn btn-success" onclick="redirectToCCAvenueStatus()">✅ Done</button>
+      <button class="btn btn-success" onclick="redirectToUserPage()">✅ Done</button>
     </div>
   </div>
 </div>
@@ -119,6 +115,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<?php
+$redirectPath = str_starts_with($customerDetails['customer_id'], 'UD') 
+    ? '/user/dashboard' 
+    : '/donate';
+?>
 <script>
     function getCookie(name) {
         const value = `; ${document.cookie}`;
@@ -126,51 +127,8 @@
         if (parts.length === 2) return parts.pop().split(';').shift();
         return null;
     }
-    console.log("Payment Mode:", "<?= isset($data['donationId']) ? esc($data['donationId']) : 'Not Available' ?>");
+    console.log("Payment Mode:", "<?= esc($donationId) ?>");
     $(document).ready(function() {
-        const donationId = "<?= esc($donationId) ?>";
-        const formData = new FormData();
-        formData.append('id', donationId);
-        const ajaxOptions = {
-            url: "<?= base_url('getDonation') ?>",
-            type: "POST",
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                if (response.status === 'success' && response.data) {
-                  console.log(response.data);
-                    populateDonationData(response.data);
-                } else {
-                    console.error("Invalid response:", response.msg);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX Error:", error);
-            }
-        };
-
-        if (donationId.startsWith("D-")) {
-            // Public donation – no auth required
-            $.ajax(ajaxOptions);
-        } else if (donationId.startsWith("UD-")) {
-            // Authenticated donation – add token
-            const token = getCookie('authToken');
-            ajaxOptions.headers = {
-                'Authorization': `Bearer ${token}`
-            };
-            $.ajax(ajaxOptions);
-        }
-        function populateDonationData(data) {
-            $("#donorName").text(data.name || 'N/A');
-            $("#donorEmail").text(data.email || 'N/A');
-            $("#donorPhone").text(data.mobile || 'N/A');
-            $("#donationAmount").text(data.amount || '0');
-            $("#receiptNo").text(data.receipt_no || 'N/A');
-            $("#date").text(data.date || 'N/A');
-        }
-
-
         $.ajax({
           url: '<?= env('NGO_API_BASE_URL') ?>/admin/details',
           type: "GET",
@@ -209,11 +167,11 @@
 
        
     });
-    function redirectToCCAvenueStatus() {
-      // If you need to pass donationId, append it as a query param
-      const donationId = "<?= esc($donationId) ?>";
-      window.location.href = "<?= base_url('ccavenueStatusPage') ?>" + (donationId ? `?donationId=${donationId}` : "");
+    function redirectToUserPage() {
+      const baseUrl = "<?= getenv('NGO_BASE_URL') ?>";
+      window.location.href = baseUrl + "<?= $redirectPath ?>";
     }
+
 </script>
 
 </body>

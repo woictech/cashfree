@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Checkout - Cashfree</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="<?= base_url('public/assets/logo.png') ?>" />
     <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
     <style>
         body {
