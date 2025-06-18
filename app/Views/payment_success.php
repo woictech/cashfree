@@ -118,7 +118,7 @@
 <?php
 $redirectPath = str_starts_with($customerDetails['customer_id'], 'UD') 
     ? '/user/dashboard' 
-    : '/donate';
+    : '/receipt';
 ?>
 <script>
     function getCookie(name) {
