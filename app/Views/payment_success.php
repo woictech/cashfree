@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title></title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="icon" type="image/png" href="<?= base_url('/public/assets/logo.png') ?>" />
+  <link rel="icon" type="image/png" href="<?= base_url('public/assets/logo.png') ?>" />
   <style>
     html, body {
       height: 100%;
@@ -67,10 +67,10 @@
             <?= isset($paymentData['payment_time']) ? date('d-m-Y', strtotime($paymentData['payment_time'])) : '' ?>
           </div>
           <div class="col-sm-6">
-            <strong>Transaction ID:</strong> <?= esc($paymentData['bank_reference'] ?? '') ?>
+            <strong>Transaction ID:</strong> <?= esc($paymentData['bank_reference'] ?? 'N/A' ) ?>
           </div>
           <div class="col-sm-6">
-            <strong>Payment Method:</strong> <?= esc(strtoupper($paymentData['payment_group'] ?? '')) ?>
+            <strong>Payment Method:</strong> <?= esc(strtoupper($paymentData['payment_group'] ?? 'Offline')) ?>
           </div>
         </div>
       </div>

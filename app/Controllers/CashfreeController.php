@@ -237,4 +237,66 @@ class CashfreeController extends BaseController
 
     }
 
+    public function offlinePayment()
+    {
+        $name   = $this->request->getPost('name');
+        $mobile = $this->request->getPost('mobile');
+
+        if (empty($name) || empty($mobile)) {
+            return redirect()->to('/error-page')->with('error', 'Name or Mobile is missing.');
+        }
+
+        $apiUrl = getenv('NGO_API_BASE_URL') . '/donation/getdonations';
+        $client = \Config\Services::curlrequest();
+
+        try {
+            $response = $client->post($apiUrl, [
+                'form_params' => [
+                    'name'   => $name,
+                    'mobile' => $mobile,
+                ],
+                'headers' => [
+                    'Content-Type' => 'application/x-www-form-urlencoded'
+                ]
+            ]);
+
+            $result = json_decode($response->getBody(), true);
+            if ($result['status'] === 'success' && isset($result['data'])) {
+                $donationData = $result['data'];
+                $donationId = 'ORDER_DD' . $donationData['id']; // if needed
+                $formattedId = 'DD-'.$donationData['id'];
+                // Structure customerDetails and paymentData
+                $customerDetails = [
+                    'customer_id'    => $formattedId ?? '', 
+                    'customer_name'  => $donationData['name']   ?? '',
+                    'customer_email' => $donationData['email']  ?? '',
+                    'customer_phone' => $donationData['mobile_no'] ?? '',
+                ];
+
+                $paymentData = [
+                    'payment_time' => $donationData['created_at'] ?? '',
+                    'order_amount' => $donationData['amount']     ?? '',
+                ];
+                // print_r("hi"); die();
+                try {
+                    return view('payment_success', [
+                        'donationId'      => $donationId,
+                        'customerDetails' => $customerDetails,
+                        'paymentData'     => $paymentData,
+                    ]);
+                } catch (\Throwable $e) {
+                    log_message('error', 'View rendering error: ' . $e->getMessage());
+                    return redirect()->to('/error-page')->with('error', 'View rendering failed: ' . $e->getMessage());
+                }
+            }  else {
+                return redirect()->to('/error-page')->with('error', 'Donation not found or invalid.');
+            }
+
+        } catch (\Exception $e) {
+            log_message('error', 'OfflinePayment API error: ' . $e->getMessage());
+            return redirect()->to('/error-page')->with('error', 'Unable to fetch receipt data.');
+        }
+    }
+
+
 }
