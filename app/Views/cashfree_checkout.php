@@ -29,7 +29,7 @@
 
     <div class="d-grid gap-2 mt-4">
         <button id="payBtn" class="btn btn-success">Pay Now</button>
-        <a href="<?= site_url('/') ?>" class="btn btn-outline-secondary">Cancel</a>
+        <a href="<?= rtrim(getenv('NGO_URL'), '/') ?>/member" class="btn btn-outline-secondary">Cancel</a>
     </div>
 </div>
 

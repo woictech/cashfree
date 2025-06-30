@@ -241,23 +241,36 @@ class CashfreeController extends BaseController
     {
         $name   = $this->request->getPost('name');
         $mobile = $this->request->getPost('mobile');
-
+        $type = $this->request->getPost('type');
+        $token = $this->request->getPost('token');
         if (empty($name) || empty($mobile)) {
             return redirect()->to('/error-page')->with('error', 'Name or Mobile is missing.');
         }
-
-        $apiUrl = getenv('NGO_API_BASE_URL') . '/donation/getdonations';
+        // $apiUrl = getenv('NGO_API_BASE_URL') . '/donation/getdonations';
         $client = \Config\Services::curlrequest();
+        $headers = [
+            'Content-Type' => 'application/json'
+        ];
+        // Check if type starts with 'UD'
+        if (strpos($type, 'UD') === 0) {
+            $apiUrl = getenv('NGO_API_BASE_URL') . '/user-donation/getUserData';
+            if (!$token) {
+                return redirect()->to('/error-page')->with('error', 'Authorization token is missing in cookies.');
+            }
+
+            $headers['Authorization'] = 'Bearer ' . $token;
+        } else {
+            $apiUrl = getenv('NGO_API_BASE_URL') . '/donation/getdonations';
+        }
 
         try {
             $response = $client->post($apiUrl, [
                 'form_params' => [
                     'name'   => $name,
                     'mobile' => $mobile,
+                    'type'   => $type
                 ],
-                'headers' => [
-                    'Content-Type' => 'application/x-www-form-urlencoded'
-                ]
+                'headers' => $headers,
             ]);
 
             $result = json_decode($response->getBody(), true);
