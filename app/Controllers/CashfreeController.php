@@ -21,9 +21,7 @@ class CashfreeController extends BaseController
             $appId = getenv('CASHFREE_APP_ID');
             $secretKey = getenv('CASHFREE_SECRET_KEY');
         
-            $env = (getenv('CASHFREE_MODE') === 'PRODUCTION')
-                    ? Cashfree::PRODUCTION
-                    : Cashfree::SANDBOX; // 0 = SANDBOX, 1 = PRODUCTION
+            $environment = getenv('CASHFREE_MODE'); // 0 = SANDBOX, 1 = PRODUCTION
             $partnerApiKey = ''; // optional if not used
             $partnerMerchantId = ''; // optional if not used
             $clientSignature = ''; // optional if not used
@@ -31,7 +29,7 @@ class CashfreeController extends BaseController
             $x_api_version = '2022-09-01';
         
             $cashfree = new Cashfree(
-                $env,
+                $environment,
                 $appId,
                 $secretKey,
                 $partnerApiKey,
@@ -151,12 +149,10 @@ class CashfreeController extends BaseController
     {
         $appId = getenv('CASHFREE_APP_ID');
         $secretKey = getenv('CASHFREE_SECRET_KEY');
-        $env = (getenv('CASHFREE_MODE') === 'PRODUCTION')
-                            ? Cashfree::PRODUCTION
-                            : Cashfree::SANDBOX;
+        $environment = getenv('CASHFREE_MODE');
         $orderId = $this->request->getGet('order_id');
 
-        // $env = 0; // 0 = SANDBOX, 1 = PRODUCTION
+        // $environment = 0; // 0 = SANDBOX, 1 = PRODUCTION
         $partnerApiKey = ''; // optional if not used
         $partnerMerchantId = ''; // optional if not used
         $clientSignature = ''; // optional if not used
@@ -164,7 +160,7 @@ class CashfreeController extends BaseController
         $x_api_version = '2022-09-01';
     
         $cashfree = new Cashfree(
-            $env,
+            $environment,
             $appId,
             $secretKey,
             $partnerApiKey,
@@ -173,7 +169,7 @@ class CashfreeController extends BaseController
             $enableErrorAnalytics,
             $x_api_version
         );
-        $baseUrl = ($env === 'PRODUCTION')
+        $baseUrl = $environment === 1
                     ?'https://api.cashfree.com/pg/orders/' 
                     : 'https://sandbox.cashfree.com/pg/orders/';
         try {
