@@ -17,7 +17,9 @@ class CashfreeController extends BaseController
     
         $appId     = getenv('CASHFREE_APP_ID');
         $secretKey = getenv('CASHFREE_SECRET_KEY');
-        $environment = getenv('CASHFREE_MODE'); // SANDBOX | PRODUCTION
+        $mode = (int) env('CASHFREE_MODE');
+        $environment = ($mode === 1) ? 'PRODUCTION' : 'SANDBOX';
+
     
         if (!in_array($environment, ['SANDBOX', 'PRODUCTION'], true)) {
             return $this->response->setJSON([
@@ -92,7 +94,8 @@ class CashfreeController extends BaseController
     {
         $appId     = getenv('CASHFREE_APP_ID');
         $secretKey = getenv('CASHFREE_SECRET_KEY');
-        $environment = getenv('CASHFREE_MODE'); // SANDBOX | PRODUCTION
+        $mode = (int) env('CASHFREE_MODE');
+        $environment = ($mode === 1) ? 'PRODUCTION' : 'SANDBOX';
         $orderId = $this->request->getGet('order_id');
 
         $cashfree = new Cashfree(
