@@ -21,7 +21,9 @@ class CashfreeController extends BaseController
             $appId = getenv('CASHFREE_APP_ID');
             $secretKey = getenv('CASHFREE_SECRET_KEY');
         
-            $env = getenv('CASHFREE_MODE'); // 0 = SANDBOX, 1 = PRODUCTION
+            $env = (getenv('CASHFREE_MODE') === 'PRODUCTION')
+                    ? Cashfree::SANDBOX
+                    : Cashfree::PRODUCTION; // 0 = SANDBOX, 1 = PRODUCTION
             $partnerApiKey = ''; // optional if not used
             $partnerMerchantId = ''; // optional if not used
             $clientSignature = ''; // optional if not used
@@ -149,7 +151,9 @@ class CashfreeController extends BaseController
     {
         $appId = getenv('CASHFREE_APP_ID');
         $secretKey = getenv('CASHFREE_SECRET_KEY');
-        $env = getenv('CASHFREE_MODE');
+        $env = (getenv('CASHFREE_MODE') === 'PRODUCTION')
+                            ? Cashfree::SANDBOX
+                            : Cashfree::PRODUCTION;
         $orderId = $this->request->getGet('order_id');
 
         // $env = 0; // 0 = SANDBOX, 1 = PRODUCTION
@@ -169,7 +173,7 @@ class CashfreeController extends BaseController
             $enableErrorAnalytics,
             $x_api_version
         );
-        $baseUrl = $env === 1
+        $baseUrl = ($env === 'PRODUCTION')
                     ?'https://api.cashfree.com/pg/orders/' 
                     : 'https://sandbox.cashfree.com/pg/orders/';
         try {
