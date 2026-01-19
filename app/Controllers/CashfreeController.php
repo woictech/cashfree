@@ -21,7 +21,7 @@ class CashfreeController extends BaseController
             $appId = getenv('CASHFREE_APP_ID');
             $secretKey = getenv('CASHFREE_SECRET_KEY');
         
-            $environment = getenv('CASHFREE_MODE'); // 0 = SANDBOX, 1 = PRODUCTION
+            $env = getenv('CASHFREE_MODE'); // 0 = SANDBOX, 1 = PRODUCTION
             $partnerApiKey = ''; // optional if not used
             $partnerMerchantId = ''; // optional if not used
             $clientSignature = ''; // optional if not used
@@ -29,7 +29,7 @@ class CashfreeController extends BaseController
             $x_api_version = '2022-09-01';
         
             $cashfree = new Cashfree(
-                $environment,
+                $env,
                 $appId,
                 $secretKey,
                 $partnerApiKey,
@@ -86,21 +86,21 @@ class CashfreeController extends BaseController
                     $modelType = "UD-{$referenceId}";
             
                 } elseif ($type === 'DD') {
-                    // $paymentImage = $this->request->getFile('payment_image');
-                    // $profileImage = $this->request->getFile('profile_image');
-                    // $response = curlPost(getenv('NGO_API_BASE_URL') . 'donation/createdonation', [
-                    //     'mode'   => $data['mode'] ?? null,
-                    //     'amount' => $amount,
-                    //     'name' => $data['name'],
-                    //     'mobile_no' => $mobile,
-                    //     'email' => $email,
-                    //     'pan_card_no' =>$data['pan_no'],
-                    //     'address' => $data['address'],
-                    //     'amount' =>$amount,
-                    //     'payment_image' => $paymentImage,
-                    //     'image' => $profileImage
-                    // ]);
-                    // $refData = json_decode($response, true);
+                    $paymentImage = $this->request->getFile('payment_image');
+                    $profileImage = $this->request->getFile('profile_image');
+                    $response = curlPost(getenv('NGO_API_BASE_URL') . '/donation/createdonation', [
+                        'mode'   => $data['mode'] ?? null,
+                        'amount' => $amount,
+                        'name' => $data['name'],
+                        'mobile_no' => $mobile,
+                        'email' => $email,
+                        'pan_card_no' =>$data['pan_no']?? null,
+                        'address' => $data['address'],
+                        'amount' =>$amount,
+                        'payment_image' => $paymentImage,
+                        'image' => $profileImage
+                    ]);
+                    $refData = json_decode($response, true);
                     $referenceId = $data['donationId'];
                     $modelType = "DD-{$referenceId}";
                 }
@@ -113,8 +113,6 @@ class CashfreeController extends BaseController
                     ]);
                     $transRefData = json_decode($transResponse, true);
                 }
-            
-                
                 // return redirect()->to(site_url("cashfree/checkoutPage?session_id={$sessionId}&order_amount={$orderAmount}"));
                 return $this->response->setJSON([
                     'status' => 'success',
@@ -151,9 +149,10 @@ class CashfreeController extends BaseController
     {
         $appId = getenv('CASHFREE_APP_ID');
         $secretKey = getenv('CASHFREE_SECRET_KEY');
+        $env = getenv('CASHFREE_MODE');
         $orderId = $this->request->getGet('order_id');
 
-        $environment = 0; // 0 = SANDBOX, 1 = PRODUCTION
+        // $env = 0; // 0 = SANDBOX, 1 = PRODUCTION
         $partnerApiKey = ''; // optional if not used
         $partnerMerchantId = ''; // optional if not used
         $clientSignature = ''; // optional if not used
@@ -161,7 +160,7 @@ class CashfreeController extends BaseController
         $x_api_version = '2022-09-01';
     
         $cashfree = new Cashfree(
-            $environment,
+            $env,
             $appId,
             $secretKey,
             $partnerApiKey,
@@ -170,7 +169,7 @@ class CashfreeController extends BaseController
             $enableErrorAnalytics,
             $x_api_version
         );
-        $baseUrl = $environment === 1
+        $baseUrl = $env === 1
                     ?'https://api.cashfree.com/pg/orders/' 
                     : 'https://sandbox.cashfree.com/pg/orders/';
         try {
@@ -237,7 +236,7 @@ class CashfreeController extends BaseController
 
     }
 
-    public function offlinePayment()
+    public function offlinePayment()    
     {
         $name   = $this->request->getPost('name');
         $mobile = $this->request->getPost('mobile');
