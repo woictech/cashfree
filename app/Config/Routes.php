@@ -5,9 +5,11 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
-$routes->get('/', 'Home::index');
-$routes->get('checkout', 'PaymentController::checkout');
-$routes->post('create-order', 'PaymentController::createOrder');
-$routes->get('payment-success', 'PaymentController::paymentSuccess');
-$routes->get('payment-failure', 'PaymentController::paymentFailure');
+$routes->get('payment-success', 'CashfreeController::paymentSuccess');
+$routes->post('offline-receipt', 'CashfreeController::offlinePayment');
+$routes->post('cashfree/create-order', 'CashfreeController::createOrder');
+$routes->get('cashfree/checkoutPage', 'CashfreeController::checkoutPage');
+
+$routes->get('error-page', 'ErrorController::index');
+
 
